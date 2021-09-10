@@ -1,6 +1,7 @@
 import BigNumber from 'bignumber.js'
 import { WyvernProtocol } from 'wyvern-js'
 import * as ethUtil from 'ethereumjs-util'
+import * as sigUtil from 'eth-sig-util'
 import * as _ from 'lodash'
 import * as Web3 from 'web3'
 import {
@@ -144,7 +145,7 @@ async function promisify<T>(
  */
 export async function promisifyCall<T>(
     callback: (fn: Web3Callback<T>) => void,
-    onError?: (error: Error) => void
+    onError?: (error: any) => void
   ): Promise<T | undefined> {
 
   try {
@@ -547,7 +548,7 @@ export function makeBigNumber(arg: number | string | BigNumber): BigNumber {
 export async function sendRawTransaction(
     web3: Web3,
     {from, to, data, gasPrice, value = 0, gas}: Web3.TxData,
-    onError: (error: Error) => void
+    onError: (error: any) => void
   ): Promise<string> {
 
   if (gas == null) {
@@ -586,7 +587,7 @@ export async function sendRawTransaction(
 export async function rawCall(
     web3: Web3,
     { from, to, data }: Web3.CallData,
-    onError?: (error: Error) => void
+    onError?: (error: any) => void
   ): Promise<string> {
 
   try {
@@ -675,7 +676,11 @@ export async function getTransferFeeSettings(
 
 // sourced from 0x.js:
 // https://github.com/ProjectWyvern/wyvern-js/blob/39999cb93ce5d80ea90b4382182d1bd4339a9c6c/src/utils/signature_utils.ts
-function parseSignatureHex(signature: string): ECSignature {
+/**
+ * parse signature hex
+ * @param signature signature
+ */
+export function parseSignatureHex(signature: string): ECSignature {
   // HACK: There is no consensus on whether the signatureHex string should be formatted as
   // v + r + s OR r + s + v, and different clients (even different versions of the same client)
   // return the signature params in different orders. In order to support all client implementations,

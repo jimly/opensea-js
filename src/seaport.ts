@@ -46,8 +46,29 @@ import {
   encodeAtomicizedSell, encodeAtomicizedTransfer, encodeBuy, encodeCall, encodeProxyCall, encodeSell, encodeTransferCall
 } from './utils/schema'
 import {
-  annotateERC20TransferABI, annotateERC721TransferABI, assignOrdersToSides, confirmTransaction, delay, estimateCurrentPrice, estimateGas, getCurrentGasPrice, getNonCompliantApprovalAddress, getOrderHash, getTransferFeeSettings, getWyvernAsset, getWyvernBundle, isContractAddress, makeBigNumber, onDeprecated, orderToJSON,
-  personalSignAsync, promisifyCall, rawCall, sendRawTransaction, validateAndFormatWalletAddress
+  annotateERC20TransferABI,
+  annotateERC721TransferABI,
+  assignOrdersToSides,
+  parseSignatureHex,
+  confirmTransaction,
+  delay,
+  estimateCurrentPrice,
+  estimateGas,
+  getCurrentGasPrice,
+  getNonCompliantApprovalAddress,
+  getOrderHash,
+  getTransferFeeSettings,
+  getWyvernAsset,
+  getWyvernBundle,
+  isContractAddress,
+  makeBigNumber,
+  onDeprecated,
+  orderToJSON,
+  personalSignAsync,
+  promisifyCall,
+  rawCall,
+  sendRawTransaction,
+  validateAndFormatWalletAddress
 } from './utils/utils'
 
 export class OpenSeaPort {
@@ -496,7 +517,7 @@ export class OpenSeaPort {
    * @param referrerAddress The optional address that referred the order
    */
   public async createBuyOrder(
-      { asset, accountAddress, startAmount, quantity = 1, expirationTime = 0, paymentTokenAddress, sellOrder, referrerAddress }:
+      { asset, accountAddress, startAmount, quantity = 1, expirationTime = 0, paymentTokenAddress, sellOrder, referrerAddress, signCallback }:
       { asset: Asset;
         accountAddress: string;
         startAmount: number;
@@ -504,7 +525,9 @@ export class OpenSeaPort {
         expirationTime?: number;
         paymentTokenAddress?: string;
         sellOrder?: Order;
-        referrerAddress?: string; }
+        referrerAddress?: string;
+        signCallback ?: (message: string) => Promise<string>;
+      }
     ): Promise<Order> {
 
     paymentTokenAddress = paymentTokenAddress || WyvernSchemas.tokens[this._networkName].canonicalWrappedEther.address
@@ -532,7 +555,12 @@ export class OpenSeaPort {
     }
     let signature
     try {
-      signature = await this._authorizeOrder(hashedOrder)
+      if (signCallback) {
+        signature = await signCallback(hashedOrder.hash)
+        signature = parseSignatureHex(signature)
+      } else {
+        signature = await this._authorizeOrder(hashedOrder)
+      }
     } catch (error) {
       console.error(error)
       throw new Error("You declined to authorize your offer")
@@ -851,11 +879,13 @@ export class OpenSeaPort {
    * @returns Transaction hash for fulfilling the order
    */
   public async fulfillOrder(
-      { order, accountAddress, recipientAddress, referrerAddress }:
+      { order, accountAddress, recipientAddress, referrerAddress, atomicMatchCallback }:
       { order: Order;
         accountAddress: string;
         recipientAddress?: string;
-        referrerAddress?: string; }
+        referrerAddress?: string;
+        atomicMatchCallback?: (_args: any[], _txData: any) => Promise<string>;
+      }
     ): Promise<string> {
     const matchingOrder = this._makeMatchingOrder({
       order,
@@ -866,12 +896,12 @@ export class OpenSeaPort {
     const { buy, sell } = assignOrdersToSides(order, matchingOrder)
 
     const metadata = this._getMetadata(order, referrerAddress)
-    const transactionHash = await this._atomicMatch({ buy, sell, accountAddress, metadata })
+    const transactionHash = await this._atomicMatch({ buy, sell, accountAddress, metadata, atomicMatchCallback })
 
-    await this._confirmTransaction(transactionHash, EventType.MatchOrders, "Fulfilling order", async () => {
-      const isOpen = await this._validateOrder(order)
-      return !isOpen
-    })
+    // await this._confirmTransaction(transactionHash, EventType.MatchOrders, "Fulfilling order", async () => {
+    //   const isOpen = await this._validateOrder(order)
+    //   return !isOpen
+    // })
     return transactionHash
   }
 
@@ -882,32 +912,52 @@ export class OpenSeaPort {
    * @param accountAddress The order maker's wallet address
    */
   public async cancelOrder(
-      { order, accountAddress }:
+      { order, accountAddress, cancelOrderCallback }:
       { order: Order;
-        accountAddress: string}
-    ) {
+        accountAddress: string;
+        cancelOrderCallback?: (_addrs: any[], values: any[], others: any[], fromObj: any) => Promise<string>;
+      }
+    ): Promise<string> {
 
     this._dispatch(EventType.CancelOrder, { order, accountAddress })
 
-    const transactionHash = await this._wyvernProtocol.wyvernExchange.cancelOrder_.sendTransactionAsync(
-      [order.exchange, order.maker, order.taker, order.feeRecipient, order.target, order.staticTarget, order.paymentToken],
-      [order.makerRelayerFee, order.takerRelayerFee, order.makerProtocolFee, order.takerProtocolFee, order.basePrice, order.extra, order.listingTime, order.expirationTime, order.salt],
-      order.feeMethod,
-      order.side,
-      order.saleKind,
-      order.howToCall,
-      order.calldata,
-      order.replacementPattern,
-      order.staticExtradata,
-      order.v || 0,
-      order.r || NULL_BLOCK_HASH,
-      order.s || NULL_BLOCK_HASH,
-      { from: accountAddress })
-
-    await this._confirmTransaction(transactionHash.toString(), EventType.CancelOrder, "Cancelling order", async () => {
-      const isOpen = await this._validateOrder(order)
-      return !isOpen
-    })
+    let transactionHash
+    if (cancelOrderCallback) {
+      transactionHash = await cancelOrderCallback(
+          [order.exchange, order.maker, order.taker, order.feeRecipient, order.target, order.staticTarget, order.paymentToken],
+          [order.makerRelayerFee, order.takerRelayerFee, order.makerProtocolFee, order.takerProtocolFee, order.basePrice, order.extra, order.listingTime, order.expirationTime, order.salt],
+          [order.feeMethod,
+          order.side,
+          order.saleKind,
+          order.howToCall,
+          order.calldata,
+          order.replacementPattern,
+          order.staticExtradata,
+          order.v || 0,
+          order.r || NULL_BLOCK_HASH,
+          order.s || NULL_BLOCK_HASH],
+          { from: accountAddress })
+    } else {
+      transactionHash = await this._wyvernProtocol.wyvernExchange.cancelOrder_.sendTransactionAsync(
+          [order.exchange, order.maker, order.taker, order.feeRecipient, order.target, order.staticTarget, order.paymentToken],
+          [order.makerRelayerFee, order.takerRelayerFee, order.makerProtocolFee, order.takerProtocolFee, order.basePrice, order.extra, order.listingTime, order.expirationTime, order.salt],
+          order.feeMethod,
+          order.side,
+          order.saleKind,
+          order.howToCall,
+          order.calldata,
+          order.replacementPattern,
+          order.staticExtradata,
+          order.v || 0,
+          order.r || NULL_BLOCK_HASH,
+          order.s || NULL_BLOCK_HASH,
+          { from: accountAddress })
+    }
+    return transactionHash
+    // await this._confirmTransaction(transactionHash.toString(), EventType.CancelOrder, "Cancelling order", async () => {
+    //   const isOpen = await this._validateOrder(order)
+    //   return !isOpen
+    // })
   }
 
   /**
@@ -2370,7 +2420,7 @@ export class OpenSeaPort {
     } catch (error) {
 
       if (retries <= 0) {
-        throw new Error(`Error matching this listing: ${error.message}. Please contact the maker or try again later!`)
+        throw new Error(`Error matching this listing: ${(error as Error).message}. Please contact the maker or try again later!`)
       }
       await delay(500)
       return await this._validateMatch({ buy, sell, accountAddress, shouldValidateBuy, shouldValidateSell }, retries - 1)
@@ -2871,8 +2921,8 @@ export class OpenSeaPort {
   }
 
   private async _atomicMatch(
-      { buy, sell, accountAddress, metadata = NULL_BLOCK_HASH }:
-      { buy: Order; sell: Order; accountAddress: string; metadata?: string }
+      { buy, sell, accountAddress, metadata = NULL_BLOCK_HASH, atomicMatchCallback }:
+      { buy: Order; sell: Order; accountAddress: string; metadata?: string; atomicMatchCallback?: (_args: any[], _txData: any) => Promise<string>; }
     ) {
     let value
     let shouldValidateBuy = true
@@ -2925,8 +2975,12 @@ export class OpenSeaPort {
         metadata
       ]
     ]
+    if (atomicMatchCallback) {
+      return await atomicMatchCallback(args, txnData)
+    }
 
     // Estimate gas first
+    // @ts-ignore
     try {
       // Typescript splat doesn't typecheck
       const gasEstimate = await this._wyvernProtocolReadOnly.wyvernExchange.atomicMatch_.estimateGasAsync(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9], args[10], txnData)
@@ -2935,7 +2989,7 @@ export class OpenSeaPort {
 
     } catch (error) {
       console.error(`Failed atomic match with args: `, args, error)
-      throw new Error(`Oops, the Ethereum network rejected this transaction :( The OpenSea devs have been alerted, but this problem is typically due an item being locked or untransferrable. The exact error was "${error.message.substr(0, MAX_ERROR_LENGTH)}..."`)
+      throw new Error(`Oops, the Ethereum network rejected this transaction :( The OpenSea devs have been alerted, but this problem is typically due an item being locked or untransferrable. The exact error was "${(error as Error).message.substr(0, MAX_ERROR_LENGTH)}..."`)
     }
 
     // Then do the transaction
@@ -2948,8 +3002,8 @@ export class OpenSeaPort {
       this._dispatch(EventType.TransactionDenied, { error, buy, sell, accountAddress, matchMetadata: metadata })
 
       throw new Error(`Failed to authorize transaction: "${
-        error.message
-          ? error.message
+          (error as Error).message
+          ? (error as Error).message
           : 'user denied'
         }..."`)
     }

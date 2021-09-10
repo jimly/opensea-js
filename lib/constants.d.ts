@@ -43,7 +43,7 @@ export declare const SELL_ORDER_BATCH_SIZE = 3;
 export declare const ORDERBOOK_VERSION: number;
 export declare const API_VERSION: number;
 export declare const API_BASE_MAINNET = "https://api.opensea.io";
-export declare const API_BASE_RINKEBY = "https://testnets-api.opensea.io";
+export declare const API_BASE_RINKEBY = "https://rinkeby-api.opensea.io";
 export declare const SITE_HOST_MAINNET = "https://opensea.io";
 export declare const SITE_HOST_RINKEBY = "https://rinkeby.opensea.io";
 export declare const ORDERBOOK_PATH: string;

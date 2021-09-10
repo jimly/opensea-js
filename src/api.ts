@@ -1,6 +1,7 @@
 import 'isomorphic-unfetch'
 import * as QueryString from 'query-string'
 import {
+  EventQuery,
   Network,
   OpenSeaAPIConfig,
   OpenSeaAsset,
@@ -180,6 +181,31 @@ export class OpenSeaAPI {
         count: json.count
       }
     }
+  }
+
+  /**
+   * https://api.opensea.io/api/v1/events?asset_contract_address=0xf1ef40f5aea5d1501c1b8bcd216cf305764fca40&token_id=6197&account_address=0x5234e2821f9ecb13bcd24bdd3107dec1ddba5dd5&only_opensea=false&event_type=successful&offset=0&limit=300
+   * Get a list of events, returning the page of orders
+   *  and the count of total orders found.
+   * @param query Query to use for getting orders. A subset of parameters
+   *  on the `OrderJSON` type is supported
+   * @param page Page number, defaults to 1. Can be overridden by
+   * `limit` and `offset` attributes from OrderQuery
+   */
+  public async getEvents(
+      query: EventQuery = {},
+      page = 1
+    ): Promise<any[]> {
+
+    const result = await this.get(
+      `${API_PATH}/events/`,
+      {
+        limit: this.pageSize,
+        offset: (page - 1) * this.pageSize,
+        ...query,
+      }
+    )
+    return result.asset_events || []
   }
 
   /**
@@ -419,7 +445,7 @@ export class OpenSeaAPI {
   }
 }
 
-function _throwOrContinue(error: Error, retries: number) {
+function _throwOrContinue(error: any, retries: number) {
   const isUnavailable = !!error.message && (
     error.message.includes('503') ||
     error.message.includes('429')

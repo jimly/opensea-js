@@ -80,7 +80,7 @@ export interface EventData {
 
   transactionHash?: string
   event?: EventType
-  error?: Error
+  error?: any
 
   order?: Order | UnsignedOrder
   buy?: Order
@@ -659,6 +659,22 @@ export interface OrderQuery extends Partial<OrderJSON> {
   listed_after?: number | string
   // This means listing_time <= value in seconds
   listed_before?: number | string
+  limit?: number
+  offset?: number
+}
+
+/**
+ * Query interface for Events
+ * See https://docs.opensea.io/reference/retrieving-asset-events for
+ * full docs.
+ */
+export interface EventQuery {
+  asset_contract_address?: string
+  collection_slug?: SaleKind
+  token_id?: number | string
+  account_address?: string
+  event_type?: string
+  auction_type?: string
   limit?: number
   offset?: number
 }

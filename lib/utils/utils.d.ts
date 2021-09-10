@@ -15,7 +15,7 @@ export declare const annotateERC20TransferABI: (asset: WyvernFTAsset) => Annotat
  * and returns a Web3 Contract's call result, e.g. `c => erc721.ownerOf(3, c)`
  * @param onError callback when user denies transaction
  */
-export declare function promisifyCall<T>(callback: (fn: Web3Callback<T>) => void, onError?: (error: Error) => void): Promise<T | undefined>;
+export declare function promisifyCall<T>(callback: (fn: Web3Callback<T>) => void, onError?: (error: any) => void): Promise<T | undefined>;
 export declare const confirmTransaction: (web3: Web3, txHash: string) => Promise<unknown>;
 export declare const assetFromJSON: (asset: any) => OpenSeaAsset;
 export declare const assetEventFromJSON: (assetEvent: any) => AssetEvent;
@@ -62,7 +62,7 @@ export declare function makeBigNumber(arg: number | string | BigNumber): BigNumb
  * @param value value in ETH to send with data. Defaults to 0
  * @param onError callback when user denies transaction
  */
-export declare function sendRawTransaction(web3: Web3, { from, to, data, gasPrice, value, gas }: Web3.TxData, onError: (error: Error) => void): Promise<string>;
+export declare function sendRawTransaction(web3: Web3, { from, to, data, gasPrice, value, gas }: Web3.TxData, onError: (error: any) => void): Promise<string>;
 /**
  * Call a method on a contract, sending arbitrary data and
  * handling Parity errors. Returns '0x' if error.
@@ -73,7 +73,7 @@ export declare function sendRawTransaction(web3: Web3, { from, to, data, gasPric
  * @param data data to send to contract
  * @param onError callback when user denies transaction
  */
-export declare function rawCall(web3: Web3, { from, to, data }: Web3.CallData, onError?: (error: Error) => void): Promise<string>;
+export declare function rawCall(web3: Web3, { from, to, data }: Web3.CallData, onError?: (error: any) => void): Promise<string>;
 /**
  * Estimate Gas usage for a transaction
  * @param web3 Web3 instance
@@ -100,6 +100,11 @@ export declare function getTransferFeeSettings(web3: Web3, { asset, accountAddre
     transferFee: BigNumber | undefined;
     transferFeeTokenAddress: string | undefined;
 }>;
+/**
+ * parse signature hex
+ * @param signature signature
+ */
+export declare function parseSignatureHex(signature: string): ECSignature;
 /**
  * Estimates the price of an order
  * @param order The order to estimate price on

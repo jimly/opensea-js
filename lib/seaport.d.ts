@@ -177,7 +177,7 @@ export declare class OpenSeaPort {
      * @param sellOrder Optional sell order (like an English auction) to ensure fee and schema compatibility
      * @param referrerAddress The optional address that referred the order
      */
-    createBuyOrder({ asset, accountAddress, startAmount, quantity, expirationTime, paymentTokenAddress, sellOrder, referrerAddress }: {
+    createBuyOrder({ asset, accountAddress, startAmount, quantity, expirationTime, paymentTokenAddress, sellOrder, referrerAddress, signCallback }: {
         asset: Asset;
         accountAddress: string;
         startAmount: number;
@@ -186,6 +186,7 @@ export declare class OpenSeaPort {
         paymentTokenAddress?: string;
         sellOrder?: Order;
         referrerAddress?: string;
+        signCallback?: (message: string) => Promise<string>;
     }): Promise<Order>;
     /**
      * Create a sell order to auction an asset.
@@ -310,11 +311,12 @@ export declare class OpenSeaPort {
      * @param referrerAddress The optional address that referred the order
      * @returns Transaction hash for fulfilling the order
      */
-    fulfillOrder({ order, accountAddress, recipientAddress, referrerAddress }: {
+    fulfillOrder({ order, accountAddress, recipientAddress, referrerAddress, atomicMatchCallback }: {
         order: Order;
         accountAddress: string;
         recipientAddress?: string;
         referrerAddress?: string;
+        atomicMatchCallback?: (_args: any[], _txData: any) => Promise<string>;
     }): Promise<string>;
     /**
      * Cancel an order on-chain, preventing it from ever being fulfilled.
@@ -322,10 +324,11 @@ export declare class OpenSeaPort {
      * @param order The order to cancel
      * @param accountAddress The order maker's wallet address
      */
-    cancelOrder({ order, accountAddress }: {
+    cancelOrder({ order, accountAddress, cancelOrderCallback }: {
         order: Order;
         accountAddress: string;
-    }): Promise<void>;
+        cancelOrderCallback?: (_addrs: any[], values: any[], others: any[], fromObj: any) => Promise<string>;
+    }): Promise<string>;
     /**
      * Approve a non-fungible token for use in trades.
      * Requires an account to be initialized first.

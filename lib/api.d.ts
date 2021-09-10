@@ -1,5 +1,5 @@
 import 'isomorphic-unfetch';
-import { OpenSeaAPIConfig, OpenSeaAsset, OpenSeaAssetBundle, OpenSeaAssetBundleQuery, OpenSeaAssetQuery, OpenSeaFungibleToken, OpenSeaFungibleTokenQuery, Order, OrderJSON, OrderQuery } from './types';
+import { EventQuery, OpenSeaAPIConfig, OpenSeaAsset, OpenSeaAssetBundle, OpenSeaAssetBundleQuery, OpenSeaAssetQuery, OpenSeaFungibleToken, OpenSeaFungibleTokenQuery, Order, OrderJSON, OrderQuery } from './types';
 export declare class OpenSeaAPI {
     /**
      * Host url for OpenSea
@@ -60,6 +60,16 @@ export declare class OpenSeaAPI {
         orders: Order[];
         count: number;
     }>;
+    /**
+     * https://api.opensea.io/api/v1/events?asset_contract_address=0xf1ef40f5aea5d1501c1b8bcd216cf305764fca40&token_id=6197&account_address=0x5234e2821f9ecb13bcd24bdd3107dec1ddba5dd5&only_opensea=false&event_type=successful&offset=0&limit=300
+     * Get a list of events, returning the page of orders
+     *  and the count of total orders found.
+     * @param query Query to use for getting orders. A subset of parameters
+     *  on the `OrderJSON` type is supported
+     * @param page Page number, defaults to 1. Can be overridden by
+     * `limit` and `offset` attributes from OrderQuery
+     */
+    getEvents(query?: EventQuery, page?: number): Promise<any[]>;
     /**
      * Fetch an asset from the API, throwing if none is found
      * @param tokenAddress Address of the asset's contract
